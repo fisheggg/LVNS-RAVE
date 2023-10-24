@@ -1,4 +1,4 @@
-import parser
+import os
 import gin
 import sys
 import logging
@@ -17,7 +17,12 @@ def main(args):
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
-    parser.add_argument("-c", "--config_path", type=str, description="Path to the eprior config file, in gin format")
+    parser.add_argument(
+        "-c",
+        "--config_path",
+        type=str,
+        help="Path to the eprior config file, in gin format",
+    )
 
     args = parser.parse_args()
     main(args)

@@ -1,0 +1,22 @@
+# basics
+# EPrior.classifier_path = "" # using the hub
+EPrior.device = "cpu"
+EPrior.sample_rate = 48000
+EPrior.output_path = "/projects/ec12/jinyueg/eprior-RAVE/generated/darbouka_novelty"
+
+# RAVE configs
+EPrior.rave_path = "/projects/ec12/jinyueg/eprior-RAVE/pretrained_models/darbouka_onnx.ts"
+EPrior.latent_dim = (4, 64)
+EPrior.rave_version = "V2"
+
+# evolution configs
+EPrior.num_iteration = 100
+EPrior.save_output_per_n_iteration = 1
+EPrior.container_size = 50
+EPrior.new_breed_size = 30
+EPrior.mutate_methods = ""
+EPrior.container_init_method = "random"    # ["random", "normal"]
+EPrior.select_method = "novelty"    # ["concat", "replace", "novelty"]
+
+# novelty configs
+EPrior.knn_n_neighbors = 30

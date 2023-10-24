@@ -98,7 +98,6 @@ class EPrior:
         ### init knn for novelty selection
         if self.select_method == "novelty":
             self.knn = KNeighborsClassifier(n_neighbors=self.knn_n_neighbors)
-            
 
     def mutate(self):
         """
@@ -200,14 +199,20 @@ class EPrior:
             ### perform novelty search using knn
             ### perform a knn, and calculate the mean distance for each sample to its neighbors
             ### then select the samples with the highest mean distance
-            all_embeddings = torch.concat([self.evaluate(self.generate(self.container)), embeddings], dim=0)
+            all_embeddings = torch.concat(
+                [self.evaluate(self.generate(self.container)), embeddings], dim=0
+            )
             all_genes = torch.concat([self.container, new_genes], dim=0)
             mean_distances = torch.zeros(all_embeddings.shape[0])
             for i, embedding in enumerate(all_embeddings):
                 dist = torch.norm(all_embeddings - embedding, dim=1)
-                mean_distances[i] = torch.topk(dist, self.knn_n_neighbors, largest=True).values.mean()
+                mean_distances[i] = torch.topk(
+                    dist, self.knn_n_neighbors, largest=True
+                ).values.mean()
             ### update the container with the samples with the highest mean distance
-            self.container = all_genes[torch.topk(mean_distances, self.container_size, largest=True).indices]
+            self.container = all_genes[
+                torch.topk(mean_distances, self.container_size, largest=True).indices
+            ]
 
             return {"mean_distances": mean_distances.detach().cpu().numpy()}
 
@@ -219,7 +224,6 @@ class EPrior:
 
     def run(self):
         # save init container
-        print(self.container.shape)
         output = self.generate(self.container)
 
         out_path = os.path.join(self.output_path, f"{0:04}")
@@ -242,7 +246,10 @@ class EPrior:
             ):
                 out_path = os.path.join(self.output_path, f"{n_iter+1:04}")
                 self.save_results(
-                    self.container, self.generate(self.container), out_path, select_meta=select_meta
+                    self.container,
+                    self.generate(self.container),
+                    out_path,
+                    select_meta=select_meta,
                 )
 
         logging.info("Evolution finished!!")
