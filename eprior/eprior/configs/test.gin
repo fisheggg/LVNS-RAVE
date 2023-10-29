@@ -1,22 +1,30 @@
-# basics
-# EPrior.classifier_path = "" # using the hub
-EPrior.device = "cpu"
-EPrior.sample_rate = 48000
-EPrior.output_path = "/fp/homes01/u01/ec-jinyueg/felles/Research/Project/EPrior/test_eprior_output"
+# basic configs
+EPrior:
+    device = "cpu"
+    sample_rate = 48000
+    output_path = "/projects/ec12/jinyueg/eprior-RAVE/test_eprior_output"
+    random_seed = 42
 
-# RAVE configs
-EPrior.rave_path = "/fp/homes01/u01/ec-jinyueg/felles/Research/Project/EPrior/pretrained_models/darbouka_onnx.ts"
-EPrior.latent_dim = (4, 64)
-EPrior.rave_version = "V2"
+    # evolution configs
+    num_iteration = 1
+    save_output_per_n_iteration = 1
 
-# evolution configs
-EPrior.num_iteration = 20
-EPrior.save_output_per_n_iteration = 1
-EPrior.container_size = 50
-EPrior.new_breed_size = 30
-EPrior.mutate_methods = ""
-EPrior.container_init_method = "random"    # ["random", "normal"]
-EPrior.select_method = "novelty"    # ["concat", "replace", "novelty"]
+EPrior.rave:
+    path = "/projects/ec12/jinyueg/eprior-RAVE/pretrained_models/darbouka_onnx.ts"
+    latent_dim = (4, 64)
+    version = "V2"
 
-# novelty configs
-EPrior.knn_n_neighbors = 30
+EPrior.classifier:
+    type = "vggish"
+
+EPrior.container:
+    init_method =  "random"   # ["random", "normal"]
+    size = 20
+
+EPrior.mutation:
+    new_breed_size = 10
+    method = None
+
+EPrior.selection:
+    method = "novelty"    # ["concat", "replace", "novelty"]
+    knn_n_neighbors = 10

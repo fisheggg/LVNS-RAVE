@@ -5,6 +5,7 @@ generated/
 pretrained_models/*
 test_eprior_output/
 *.ipynb
+datasets/
 
 
 # Byte-compiled / optimized / DLL files

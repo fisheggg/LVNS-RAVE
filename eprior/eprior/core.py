@@ -18,103 +18,90 @@ class EPrior:
         self,
         num_iteration: int,
         save_output_per_n_iteration: int,
-        container_size: int,
-        new_breed_size: int,
-        rave_path: str,
-        rave_version: str,
         device: str,
         sample_rate: int,
         # classifier_path: str,
         output_path: str,
-        latent_dim: Tuple[int, int],
-        mutate_methods: Tuple,
-        container_init_method: str,
-        knn_n_neighbors: int,
-        select_method: str,
-        random_seed: int = 42,
+        random_seed: int,
     ):
         self.device = device
-        self.rave_path = rave_path
-        self.rave_version = rave_version
         # self.classfier_path = classifier_path
         self.output_path = output_path
         self.sample_rate = sample_rate
 
-        self.container_size = container_size
-        self.container_init_method = container_init_method
-        self.new_breed_size = new_breed_size
-
-        self.latent_dim = latent_dim
         self.num_iteration = num_iteration
         self.random_seed = random_seed
         self.save_output_per_n_iteration = save_output_per_n_iteration
-        self.select_method = select_method
-        self.knn_n_neighbors = knn_n_neighbors
-
-        self._valid_check()
-
-        self._init()
-
-    def _valid_check(self):
-        valid_container_init_method = ["random"]
-        if self.container_init_method not in valid_container_init_method:
-            raise ValueError(
-                f"Invalid container init method: {self.container_init_method}, supported methods: {valid_container_init_method} "
-            )
-
-    def _init(self):
-        seed_everything(self.random_seed)
 
         logging.info("Initializing EPrior")
-        ## load rave
-        self.rave = torch.jit.load(self.rave_path).to(self.device)
+
+        seed_everything(self.random_seed)
+        self._init_rave()
+        self._init_classifier()
+        self._init_container()
+
+    @gin.configurable("EPrior.rave")
+    def _init_rave(self, path, version, latent_dim):
+        """load rave"""
+        self.rave = torch.jit.load(path).to(self.device)
+        self.rave_version = version
+        self.latent_dim = latent_dim
         logging.info("RAVE loaded")
 
-        ## load classifier
-        self.vggish = torch.hub.load(
-            "harritaylor/torchvggish",
-            "vggish",
-            postprocess=False,
-            device=self.device,
-        )
-        self.vggish.eval()
-        logging.info("VGGish loaded")
-        # overwrite preprocess function to allow batch processing
-        # self.vggish._preprocess = vggish_preprocess
+    @gin.configurable("EPrior.classifier")
+    def _init_classifier(self, type):
+        """load classifier"""
+        if type == "vggish":
+            self.vggish = torch.hub.load(
+                "harritaylor/torchvggish",
+                "vggish",
+                postprocess=False,
+                device=self.device,
+            )
+            self.vggish.eval()
+            logging.info("VGGish loaded")
+        else:
+            raise ValueError(f"Invalid classifier type: {type}")
 
-        ## init container
-        if self.container_init_method == "normal":
+    @gin.configurable("EPrior.container")
+    def _init_container(self, init_method, size):
+        """init container.
+
+        Args:
+            init_method (str): init method, "normal" or "random"
+            size (int): size of the container
+        """
+        self.container_size = size
+        if init_method == "normal":
             self.container = torch.normal(
                 mean=0.0,
                 std=1.0,
-                size=(self.container_size, *self.latent_dim),
+                size=(size, *self.latent_dim),
             )
-        elif self.container_init_method == "random":
+        elif init_method == "random":
             self.container = torch.rand(
-                size=(self.container_size, *self.latent_dim),
+                size=(size, *self.latent_dim),
             )
+        else:
+            raise ValueError(f"Invalid container init method: {init_method}")
 
-        ## extra inits
-        ### init knn for novelty selection
-        if self.select_method == "novelty":
-            self.knn = KNeighborsClassifier(n_neighbors=self.knn_n_neighbors)
-
-    def mutate(self):
+    @gin.configurable("EPrior.mutation")
+    def mutate(self, new_breed_size, method):
         """
         Cross over and mutate genes in container.
         """
-        new_genes = torch.zeros(self.new_breed_size, *self.latent_dim)
+        new_genes = torch.zeros(new_breed_size, *self.latent_dim)
 
         ### crossover on time axis
         first_parent = torch.arange(self.container_size)
         first_parent = first_parent[torch.randperm(self.container_size)][
-            : self.new_breed_size
+            :new_breed_size
         ]
         # crossover point from idx 1 to idx length-2
         crossover_point = torch.randint(low=1, high=self.latent_dim[1] - 2, size=(1,))
         second_parent = torch.arange(self.container_size)
         second_parent = second_parent[torch.randperm(self.container_size)][
-            : self.new_breed_size
+            :new_breed_size
         ]
         # first half from first parent, second half from second parent
         new_genes[:, :, :crossover_point] = self.container[
@@ -186,16 +173,19 @@ class EPrior:
                 embeddings[i] = embedding
         return embeddings
 
+    @gin.configurable("EPrior.selection", denylist=["new_genes", "embeddings"])
     def select(
         self,
+        method: str,
         new_genes: torch.Tensor,
         embeddings: torch.Tensor,
+        **kwargs,
     ):
-        if self.select_method == "concat":
+        if method == "concat":
             self.container = torch.concat([self.container, new_genes], dim=0)
-        elif self.select_method == "replace":
+        elif method == "replace":
             self.container = new_genes
-        elif self.select_method == "novelty":
+        elif method == "novelty":
             ### perform novelty search using knn
             ### perform a knn, and calculate the mean distance for each sample to its neighbors
             ### then select the samples with the highest mean distance
@@ -207,7 +197,7 @@ class EPrior:
             for i, embedding in enumerate(all_embeddings):
                 dist = torch.norm(all_embeddings - embedding, dim=1)
                 mean_distances[i] = torch.topk(
-                    dist, self.knn_n_neighbors, largest=True
+                    dist, kwargs["knn_n_neighbors"], largest=True
                 ).values.mean()
             ### update the container with the samples with the highest mean distance
             self.container = all_genes[
@@ -238,7 +228,7 @@ class EPrior:
             # evaluate output with VGGish
             embeddings = self.evaluate(output)
 
-            select_meta = self.select(new_genes, embeddings)
+            select_meta = self.select(new_genes=new_genes, embeddings=embeddings)
 
             # save output every n iteration, and the init
             if (self.save_output_per_n_iteration > 0) & (
@@ -251,5 +241,10 @@ class EPrior:
                     out_path,
                     select_meta=select_meta,
                 )
+
+            # save gin configs after the first iteration
+            if n_iter == 0:
+                with open(os.path.join(self.output_path, "config.gin"), "w") as f:
+                    f.write(gin.operative_config_str())
 
         logging.info("Evolution finished!!")

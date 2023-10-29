@@ -1,22 +1,29 @@
-# basics
-# EPrior.classifier_path = "" # using the hub
-EPrior.device = "cpu"
-EPrior.sample_rate = 48000
-EPrior.output_path = "/projects/ec12/jinyueg/eprior-RAVE/generated/VCTK_novelty"
+# basic configs
+EPrior:
+    device = "cpu"
+    sample_rate = 48000
+    output_path = "/projects/ec12/jinyueg/eprior-RAVE/generated/VCTK_novelty"
 
-# RAVE configs
-EPrior.rave_path = "/projects/ec12/jinyueg/eprior-RAVE/pretrained_models/VCTK.ts"
-EPrior.latent_dim = (4, 64)
-EPrior.rave_version = "V1"
+    # evolution configs
+    num_iteration = 1
+    save_output_per_n_iteration = 1
 
-# evolution configs
-EPrior.num_iteration = 100
-EPrior.save_output_per_n_iteration = 1
-EPrior.container_size = 50
-EPrior.new_breed_size = 30
-EPrior.mutate_methods = ""
-EPrior.container_init_method = "random"    # ["random", "normal"]
-EPrior.select_method = "novelty"    # ["concat", "replace", "novelty"]
+EPrior.rave:
+    path = "/projects/ec12/jinyueg/eprior-RAVE/pretrained_models/VCTK.ts"
+    latent_dim = (4, 64)
+    version = "V1"
 
-# novelty configs
-EPrior.knn_n_neighbors = 30
+EPrior.classifier:
+    type = "vggish"
+
+EPrior.container:
+    init_method =  "random"   # ["random", "normal"]
+    size = 20
+
+EPrior.mutation:
+    new_breed_size = 10
+    method = None
+
+EPrior.selection:
+    method = "novelty"    # ["concat", "replace", "novelty"]
+    knn_n_neighbors = 10
