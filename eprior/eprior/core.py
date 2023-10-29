@@ -1,5 +1,7 @@
 import os
+from tkinter.filedialog import LoadFileDialog
 import gin
+import h5py
 import torch
 import logging
 import numpy as np
@@ -64,7 +66,7 @@ class EPrior:
             raise ValueError(f"Invalid classifier type: {type}")
 
     @gin.configurable("EPrior.container")
-    def _init_container(self, init_method, size):
+    def _init_container(self, init_method, size, dataset_path=None):
         """init container.
 
         Args:
@@ -82,11 +84,27 @@ class EPrior:
             self.container = torch.rand(
                 size=(size, *self.latent_dim),
             )
+        # load embeddings from a dataset
+        elif init_method == "dataset":
+            self.container = torch.zeros(size, *self.latent_dim)
+            f = h5py.File(dataset_path, "r")
+            dataset_size = len(list(f.keys()))
+            # randomly select samples
+            idx = torch.randperm(dataset_size)[:size]
+            for i, k in enumerate(idx):
+                loaded = torch.tensor(f[f"{k}"][0])
+                assert len(loaded.shape) == 2
+                # truncate or pad loaded embeddings
+                if loaded.shape[1] < self.latent_dim[1]:
+                    self.container[i, :, : loaded.shape[1]] = loaded
+                elif loaded.shape[1] >= self.latent_dim[1]:
+                    self.container[i, :, :] = loaded[:, :self.latent_dim[1]]            
         else:
             raise ValueError(f"Invalid container init method: {init_method}")
+        logging.info(f"Container initialized using method: {init_method}")
 
     @gin.configurable("EPrior.mutation")
-    def mutate(self, new_breed_size, method):
+    def mutate(self, new_breed_size, method, distribution):
         """
         Cross over and mutate genes in container.
         """
@@ -114,9 +132,21 @@ class EPrior:
         ### mutate one column of each gene
         for gene in new_genes:
             col_idx = torch.randint(low=0, high=self.latent_dim[1] - 1, size=(1,))
-            gene[:, col_idx] = torch.normal(
-                mean=0.0, std=1.0, size=(self.latent_dim[0], 1)
-            )
+            if distribution == "normal":
+                new_component = torch.normal(
+                    mean=0.0, std=1.0, size=(self.latent_dim[0], 1)
+                )
+            elif distribution == "uniform":
+                new_component = torch.rand(size=(self.latent_dim[0], 1))
+            else:
+                raise ValueError(f"Invalid distribution: {distribution}")
+
+            if method == "replace":
+                gene[:, col_idx] = new_component
+            elif method == "add":
+                gene[:, col_idx] += new_component
+            else:
+                raise ValueError(f"Invalid mutation method: {method}")
 
         return new_genes
 
@@ -143,21 +173,22 @@ class EPrior:
         out_path: str,
         select_meta: Optional[dict] = None,
     ):
-        os.makedirs(out_path)
+        os.makedirs(out_path, exist_ok=True)
         # save new genes
         if genes is not None:
             np.save(os.path.join(out_path, "genes.npy"), genes)
         # save select meta
-        if select_meta:
+        if select_meta is not None:
             for k in select_meta:
                 np.save(os.path.join(out_path, f"{k}.npy"), select_meta[k])
         # save audio files
-        for i, out in enumerate(output):
-            sf.write(
-                out_path + f"/{i:03}.wav",
-                out.cpu().numpy(),
-                samplerate=self.sample_rate,
-            )
+        if output is not None:
+            for i, out in enumerate(output):
+                sf.write(
+                    out_path + f"/{i:03}.wav",
+                    out.cpu().numpy(),
+                    samplerate=self.sample_rate,
+                )
 
     def evaluate(
         self,
@@ -230,7 +261,11 @@ class EPrior:
 
             select_meta = self.select(new_genes=new_genes, embeddings=embeddings)
 
-            # save output every n iteration, and the init
+            # save output
+            out_path = os.path.join(self.output_path, f"{n_iter+1:04}")
+            # metadata
+            self.save_results(None, None, out_path,select_meta=select_meta)
+            # audio files
             if (self.save_output_per_n_iteration > 0) & (
                 n_iter % self.save_output_per_n_iteration == 0
             ):
@@ -238,10 +273,8 @@ class EPrior:
                 self.save_results(
                     self.container,
                     self.generate(self.container),
-                    out_path,
-                    select_meta=select_meta,
+                    out_path
                 )
-
             # save gin configs after the first iteration
             if n_iter == 0:
                 with open(os.path.join(self.output_path, "config.gin"), "w") as f:

@@ -10,20 +10,22 @@ EPrior:
     save_output_per_n_iteration = 1
 
 EPrior.rave:
-    path = "/projects/ec12/jinyueg/eprior-RAVE/pretrained_models/darbouka_onnx.ts"
-    latent_dim = (4, 64)
-    version = "V2"
+    path = "/projects/ec12/jinyueg/eprior-RAVE/pretrained_models/VCTK.ts"
+    latent_dim = (8, 64)
+    version = "V1"
 
 EPrior.classifier:
     type = "vggish"
 
 EPrior.container:
-    init_method =  "random"   # ["random", "normal"]
-    size = 20
+    init_method =  "dataset"   # ["random", "normal", "dataset]
+    dataset_path = "/projects/ec12/jinyueg/eprior-RAVE/datasets/vctk_rave_encoded.h5"
+    size = 50
 
 EPrior.mutation:
     new_breed_size = 10
-    method = None
+    method = "add"
+    distribution = "normal"
 
 EPrior.selection:
     method = "novelty"    # ["concat", "replace", "novelty"]
