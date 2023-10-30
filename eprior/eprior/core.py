@@ -89,6 +89,11 @@ class EPrior:
             self.container = torch.zeros(size, *self.latent_dim)
             f = h5py.File(dataset_path, "r")
             dataset_size = len(list(f.keys()))
+            if dataset_size < size:
+                raise ValueError(
+                    f"Dataset size ({dataset_size}) is smaller than the container size ({size})"
+                )
+
             # randomly select samples
             idx = torch.randperm(dataset_size)[:size]
             for i, k in enumerate(idx):
@@ -98,9 +103,11 @@ class EPrior:
                 if loaded.shape[1] < self.latent_dim[1]:
                     self.container[i, :, : loaded.shape[1]] = loaded
                 elif loaded.shape[1] >= self.latent_dim[1]:
-                    self.container[i, :, :] = loaded[:, :self.latent_dim[1]]            
+                    self.container[i, :, :] = loaded[:, : self.latent_dim[1]]
         else:
             raise ValueError(f"Invalid container init method: {init_method}")
+
+        del f
         logging.info(f"Container initialized using method: {init_method}")
 
     @gin.configurable("EPrior.mutation")
@@ -154,8 +161,24 @@ class EPrior:
         """
         Render embeddings with RAVE decoder.
         """
+        # genes shape: batch, dim, length
         with torch.no_grad():
-            outputs = self.rave.decode(genes)  # genes shape: batch, dim, length
+            # rave only takes batch <= 64, so we need to split the batch for larger size
+            if genes.shape[0] > 64:
+                if self.rave_version == "V1":
+                    outputs = torch.zeros(1, genes.shape[0], genes.shape[-1] * 2048)
+                    for batch_idx, gene in enumerate(genes.split(64, dim=0)):
+                        start = batch_idx * 64
+                        end = start + gene.shape[0]
+                        outputs[:, start:end, :] = self.rave.decode(gene)
+                elif self.rave_version == "V2":
+                    outputs = torch.zeros(genes.shape[0], 1, genes.shape[-1] * 2048)
+                    for batch_idx, gene in enumerate(genes.split(64, dim=0)):
+                        start = batch_idx * 64
+                        end = start + gene.shape[0]
+                        outputs[start:end, :, :] = self.rave.decode(gene)
+            else:
+                outputs = self.rave.decode(genes)  
 
         # RAVE V1 has output shape (1, batch, time), V2 has shape (batch, 1, time)
         if self.rave_version == "V1":
@@ -219,7 +242,7 @@ class EPrior:
         elif method == "novelty":
             ### perform novelty search using knn
             ### perform a knn, and calculate the mean distance for each sample to its neighbors
-            ### then select the samples with the highest mean distance
+            ### then select the samples with the highest mean distance, a.e. sparseness
             all_embeddings = torch.concat(
                 [self.evaluate(self.generate(self.container)), embeddings], dim=0
             )
@@ -264,16 +287,14 @@ class EPrior:
             # save output
             out_path = os.path.join(self.output_path, f"{n_iter+1:04}")
             # metadata
-            self.save_results(None, None, out_path,select_meta=select_meta)
+            self.save_results(None, None, out_path, select_meta=select_meta)
             # audio files
             if (self.save_output_per_n_iteration > 0) & (
                 n_iter % self.save_output_per_n_iteration == 0
             ):
                 out_path = os.path.join(self.output_path, f"{n_iter+1:04}")
                 self.save_results(
-                    self.container,
-                    self.generate(self.container),
-                    out_path
+                    self.container, self.generate(self.container), out_path
                 )
             # save gin configs after the first iteration
             if n_iter == 0:
