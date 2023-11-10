@@ -1,0 +1,32 @@
+EPrior:
+    device = "cpu"
+    sample_rate = 48000
+    output_path = "/projects/ec12/jinyueg/eprior-RAVE/generated/nasa_novelty_large_231110"
+    random_seed = 42
+
+    # evolution configs
+    num_iteration = 100
+    save_output_per_n_iteration = 10
+
+EPrior.rave:
+    path = "/projects/ec12/jinyueg/eprior-RAVE/pretrained_models/nasa.ts"
+    latent_dim = (8, 64)
+    version = "V1_single" # nasa only take batch size 1
+
+EPrior.classifier:
+    type = "vggish"
+
+EPrior.container:
+    init_method =  "dataset"    # ["random", "normal", "dataset"]
+    dataset_path = "/projects/ec12/jinyueg/eprior-RAVE/datasets/nasa_rave_encoded_split_2.h5"
+    offset = 300    # initial offset when loading embedding, in frames
+    size = 500
+
+EPrior.mutation:
+    new_breed_size = 100
+    method = "add"
+    distribution = "normal"
+
+EPrior.selection:
+    method = "novelty"    # ["concat", "replace", "novelty"]
+    knn_n_neighbors = 50

@@ -66,7 +66,7 @@ class EPrior:
             raise ValueError(f"Invalid classifier type: {type}")
 
     @gin.configurable("EPrior.container")
-    def _init_container(self, init_method, size, dataset_path=None):
+    def _init_container(self, init_method, size, dataset_path=None, offset=None):
         """init container.
 
         Args:
@@ -96,8 +96,11 @@ class EPrior:
 
             # randomly select samples
             idx = torch.randperm(dataset_size)[:size]
+            # set the offset to 0 if not specified
+            if offset is None:
+                offset = 0
             for i, k in enumerate(idx):
-                loaded = torch.tensor(f[f"{k}"][0])
+                loaded = torch.tensor(f[f"{k}"][0])[:, offset:]
                 assert len(loaded.shape) == 2
                 # truncate or pad loaded embeddings
                 if loaded.shape[1] < self.latent_dim[1]:
@@ -163,8 +166,15 @@ class EPrior:
         """
         # genes shape: batch, dim, length
         with torch.no_grad():
+            # some of the old rave models only take batch size = 1
+            if self.rave_version == "V1_single":
+                outputs = torch.zeros(1, genes.shape[0], genes.shape[-1] * 2048)
+                for batch_idx, gene in enumerate(genes.split(1, dim=0)):
+                    start = batch_idx * 64
+                    end = start + gene.shape[0]
+                    outputs[:, start:end, :] = self.rave.decode(gene)
             # rave only takes batch <= 64, so we need to split the batch for larger size
-            if genes.shape[0] > 64:
+            elif genes.shape[0] > 64:
                 if self.rave_version == "V1":
                     outputs = torch.zeros(1, genes.shape[0], genes.shape[-1] * 2048)
                     for batch_idx, gene in enumerate(genes.split(64, dim=0)):
@@ -181,9 +191,9 @@ class EPrior:
                 outputs = self.rave.decode(genes)  
 
         # RAVE V1 has output shape (1, batch, time), V2 has shape (batch, 1, time)
-        if self.rave_version == "V1":
+        if "V1" in self.rave_version:
             outputs = outputs[0]
-        elif self.rave_version == "V2":
+        elif "V2" in self.rave_version:
             outputs = outputs[:, 0, :]
 
         # final shape: (batch, time)
