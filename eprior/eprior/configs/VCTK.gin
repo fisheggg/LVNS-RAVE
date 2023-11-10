@@ -2,12 +2,12 @@
 EPrior:
     device = "cpu"
     sample_rate = 48000
-    output_path = "/projects/ec12/jinyueg/eprior-RAVE/test_eprior_output"
+    output_path = "/projects/ec12/jinyueg/eprior-RAVE/generated/VCTK_novelty_data_large_231030"
     random_seed = 42
 
     # evolution configs
-    num_iteration = 1
-    save_output_per_n_iteration = 1
+    num_iteration = 100
+    save_output_per_n_iteration = 10
 
 EPrior.rave:
     path = "/projects/ec12/jinyueg/eprior-RAVE/pretrained_models/VCTK.ts"
@@ -18,16 +18,16 @@ EPrior.classifier:
     type = "vggish"
 
 EPrior.container:
-    init_method =  "dataset"   # ["random", "normal", "dataset]
+    init_method =  "dataset"    # ["random", "normal", "dataset"]
     dataset_path = "/projects/ec12/jinyueg/eprior-RAVE/datasets/vctk_rave_encoded.h5"
-    offset = 16
-    size = 100
+    offset = 32    # initial offset when loading embedding, in frames
+    size = 500
 
 EPrior.mutation:
-    new_breed_size = 30
+    new_breed_size = 100
     method = "add"
     distribution = "normal"
 
 EPrior.selection:
     method = "novelty"    # ["concat", "replace", "novelty"]
-    knn_n_neighbors = 30
+    knn_n_neighbors = 50
