@@ -5,7 +5,7 @@ import torch
 import logging
 import numpy as np
 import soundfile as sf
-import tensorboard
+# import tensorboard
 from tqdm import tqdm
 from typing import Tuple, Optional
 from pytorch_lightning import seed_everything
@@ -41,7 +41,7 @@ class EPrior:
         self._init_rave()
         self._init_classifier()
         self._init_container()
-        self.tb = tensorboard.summary.create_file_writer(os.path.join(self.output_path, "logs"))
+        # self.tb = tensorboard.summary.create_file_writer(os.path.join(self.output_path, "logs"))
 
     @gin.configurable("EPrior.rave")
     def _init_rave(self, path, version, latent_dim):

@@ -7,6 +7,8 @@ test_eprior_output/
 *.ipynb
 datasets/
 
+*.mp3
+*.wav
 
 # Byte-compiled / optimized / DLL files
 __pycache__/
