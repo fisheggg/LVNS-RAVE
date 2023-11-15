@@ -1,11 +1,11 @@
 import os
-from tkinter.filedialog import LoadFileDialog
 import gin
 import h5py
 import torch
 import logging
 import numpy as np
 import soundfile as sf
+import tensorboard
 from tqdm import tqdm
 from typing import Tuple, Optional
 from pytorch_lightning import seed_everything
@@ -41,6 +41,7 @@ class EPrior:
         self._init_rave()
         self._init_classifier()
         self._init_container()
+        self.tb = tensorboard.summary.create_file_writer(os.path.join(self.output_path, "logs"))
 
     @gin.configurable("EPrior.rave")
     def _init_rave(self, path, version, latent_dim):
@@ -83,7 +84,7 @@ class EPrior:
         elif init_method == "random":
             self.container = torch.rand(
                 size=(size, *self.latent_dim),
-            )
+            ) * 2 - 1
         # load embeddings from a dataset
         elif init_method == "dataset":
             self.container = torch.zeros(size, *self.latent_dim)
@@ -110,7 +111,6 @@ class EPrior:
         else:
             raise ValueError(f"Invalid container init method: {init_method}")
 
-        del f
         logging.info(f"Container initialized using method: {init_method}")
 
     @gin.configurable("EPrior.mutation")
@@ -167,22 +167,20 @@ class EPrior:
         # genes shape: batch, dim, length
         with torch.no_grad():
             # some of the old rave models only take batch size = 1
+            outputs = torch.zeros(1, genes.shape[0], genes.shape[-1] * 2048)
             if self.rave_version == "V1_single":
-                outputs = torch.zeros(1, genes.shape[0], genes.shape[-1] * 2048)
                 for batch_idx, gene in enumerate(genes.split(1, dim=0)):
-                    start = batch_idx * 64
+                    start = batch_idx * 1
                     end = start + gene.shape[0]
                     outputs[:, start:end, :] = self.rave.decode(gene)
             # rave only takes batch <= 64, so we need to split the batch for larger size
             elif genes.shape[0] > 64:
                 if self.rave_version == "V1":
-                    outputs = torch.zeros(1, genes.shape[0], genes.shape[-1] * 2048)
                     for batch_idx, gene in enumerate(genes.split(64, dim=0)):
                         start = batch_idx * 64
                         end = start + gene.shape[0]
                         outputs[:, start:end, :] = self.rave.decode(gene)
                 elif self.rave_version == "V2":
-                    outputs = torch.zeros(genes.shape[0], 1, genes.shape[-1] * 2048)
                     for batch_idx, gene in enumerate(genes.split(64, dim=0)):
                         start = batch_idx * 64
                         end = start + gene.shape[0]
