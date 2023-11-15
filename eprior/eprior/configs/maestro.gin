@@ -1,0 +1,33 @@
+# basic configs
+EPrior:
+    device = "cpu"
+    sample_rate = 44100
+    output_path = "/projects/ec12/jinyueg/eprior-RAVE/generated/maestro_long_231115"
+    random_seed = 42
+
+    # evolution configs
+    num_iteration = 500
+    save_output_per_n_iteration = 10
+
+EPrior.rave:
+    path = "/projects/ec12/jinyueg/eprior-RAVE/pretrained_models/maestro.ts"
+    latent_dim = (16, 64)
+    version = "V2"
+
+EPrior.classifier:
+    type = "vggish"
+
+EPrior.container:
+    init_method =  "random"    # ["random", "normal", "dataset"]
+    # dataset_path = "/projects/ec12/jinyueg/eprior-RAVE/datasets/vctk_rave_encoded.h5"
+    # offset = 32    # initial offset when loading embedding, in frames
+    size = 50
+
+EPrior.mutation:
+    new_breed_size = 30
+    method = "add"
+    distribution = "normal"
+
+EPrior.selection:
+    method = "novelty"    # ["concat", "replace", "novelty"]
+    knn_n_neighbors = 50

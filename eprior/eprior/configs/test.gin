@@ -1,7 +1,7 @@
 # basic configs
 EPrior:
     device = "cpu"
-    sample_rate = 48000
+    sample_rate = 44100
     output_path = "/projects/ec12/jinyueg/eprior-RAVE/test_eprior_output"
     random_seed = 42
 
