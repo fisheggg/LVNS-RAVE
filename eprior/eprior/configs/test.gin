@@ -1,7 +1,9 @@
 # basic configs
 EPrior:
     device = "cpu"
-    sample_rate = 44100
+    sample_rate = 44100 # change according to the RAVE model
+
+    # output path for audio files and training logs
     output_path = "/projects/ec12/jinyueg/eprior-RAVE/test_eprior_output"
     random_seed = 42
 
@@ -10,23 +12,26 @@ EPrior:
     save_output_per_n_iteration = 1
 
 EPrior.rave:
+
+    # path to the RAVE model checkpoint
     path = "/projects/ec12/jinyueg/eprior-RAVE/pretrained_models/VCTK.ts"
     latent_dim = (8, 64)
-    version = "V1"
+    version = "V1" # this is the version of RAVE, currently support V1 or V2
 
 EPrior.classifier:
-    type = "vggish"
+    type = "vggish" # only support vggish now
 
 EPrior.container:
-    init_method =  "dataset"   # ["random", "normal", "dataset]
+    init_method =  "dataset"   # options: ["random", "normal", "dataset"]
+    # dataset_path is only needed when init_method == dataset
     dataset_path = "/projects/ec12/jinyueg/eprior-RAVE/datasets/vctk_rave_encoded.h5"
     offset = 16
     size = 100
 
 EPrior.mutation:
     new_breed_size = 30
-    method = "add"
-    distribution = "normal"
+    method = "add" # potions: ["add", "replace"]
+    distribution = "normal" # options: ["normal", "uniform"]
 
 EPrior.selection:
     method = "novelty"    # ["concat", "replace", "novelty"]
