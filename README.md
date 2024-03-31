@@ -1,6 +1,6 @@
-# eprior-RAVE
+# LVNS-RAVE
 
-This is the codebase for paper `evoRAVE: Diversified audio generation with RAVE and Latent Vector Novelty Search` submitted to GECCO 2024.
+This is the codebase for paper `LVNS-RAVE: Diversified audio generation with RAVE and Latent Vector Novelty Search` accepted as a poster to GECCO 2024.
 
 # Installation
 
