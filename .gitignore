@@ -7,7 +7,6 @@ test_eprior_output/
 *.ipynb
 datasets/
 
-*.mp3
 
 
 .DS_Store
